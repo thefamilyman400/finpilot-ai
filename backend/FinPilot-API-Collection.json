@@ -1,0 +1,366 @@
+{
+  "client": "Thunder Client",
+  "collectionName": "FinPilot AI - Demo API",
+  "dateExported": "2026-05-16",
+  "version": "1.1",
+  "folders": [
+    {
+      "name": "1. Authentication",
+      "requests": [
+        {
+          "name": "Login",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/auth/login",
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"email\": \"demo@finpilot.ai\",\n  \"password\": \"Demo123!\"\n}"
+          },
+          "tests": [
+            {
+              "type": "set-env-var",
+              "custom": "json.access_token",
+              "action": "setto",
+              "value": "{{token}}"
+            }
+          ]
+        },
+        {
+          "name": "Register New User",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/auth/register",
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"NewUser123!\",\n  \"full_name\": \"New User\"\n}"
+          }
+        },
+        {
+          "name": "Get Current User",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/users/me",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Financial Accounts",
+      "requests": [
+        {
+          "name": "List All Accounts",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accounts",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Get Account Summary",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accounts/summary",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Create New Account",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/accounts",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"account_type\": \"savings\",\n  \"institution_name\": \"Test Bank\",\n  \"account_name\": \"Test Savings\",\n  \"account_number_last4\": \"9999\",\n  \"balance\": 1000.00,\n  \"currency\": \"USD\"\n}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Transactions",
+      "requests": [
+        {
+          "name": "List Transactions",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/transactions?limit=20&skip=0",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Get Transaction Analytics",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/transactions/analytics",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Create Transaction",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/transactions",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"account_id\": \"ACCOUNT_ID_HERE\",\n  \"transaction_date\": \"2026-05-16\",\n  \"description\": \"Test Transaction\",\n  \"amount\": -50.00,\n  \"transaction_type\": \"debit\",\n  \"category\": \"Groceries\",\n  \"merchant_name\": \"Test Store\"\n}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. AI Copilot",
+      "requests": [
+        {
+          "name": "Chat with AI",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/copilot/chat",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"message\": \"What's my current financial situation?\",\n  \"conversation_id\": null\n}"
+          }
+        },
+        {
+          "name": "Quick Financial Analysis",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/copilot/quick-analysis",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"query\": \"How much did I spend on food last month?\"\n}"
+          }
+        },
+        {
+          "name": "List Conversations",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/copilot/conversations",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Recommendations",
+      "requests": [
+        {
+          "name": "Get All Recommendations",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/recommendations",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Generate New Recommendations",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/recommendations/generate",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Accept Recommendation",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/recommendations/RECOMMENDATION_ID/accept",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Get Recommendations Summary",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/recommendations/summary",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Documents",
+      "requests": [
+        {
+          "name": "List Documents",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/documents",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Upload Document",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/documents/upload",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "formdata",
+            "form": [
+              {
+                "name": "file",
+                "value": "",
+                "type": "file"
+              },
+              {
+                "name": "document_type",
+                "value": "bank_statement"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Analyze Document",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/documents/DOCUMENT_ID/analyze",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Simulations",
+      "requests": [
+        {
+          "name": "Quick Retirement Simulation",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/simulations/retirement/quick",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"current_age\": 30,\n  \"retirement_age\": 65,\n  \"current_savings\": 87500,\n  \"monthly_contribution\": 500,\n  \"expected_return\": 7.0\n}"
+          }
+        },
+        {
+          "name": "Quick Investment Simulation",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/simulations/investment/quick",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"initial_investment\": 10000,\n  \"monthly_contribution\": 500,\n  \"years\": 10,\n  \"expected_return\": 8.0,\n  \"risk_level\": \"moderate\"\n}"
+          }
+        },
+        {
+          "name": "List Simulations",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/simulations",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Workflows",
+      "requests": [
+        {
+          "name": "List All Workflows",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/workflows",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        },
+        {
+          "name": "Quick Savings Transfer",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/workflows/quick/savings-transfer",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"name\": \"Auto-Save on Payday\",\n  \"amount\": 500,\n  \"frequency\": \"monthly\"\n}"
+          }
+        },
+        {
+          "name": "Quick Spending Alert",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/v1/workflows/quick/spending-alert",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          },
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"name\": \"High Spending Alert\",\n  \"category\": \"Restaurants\",\n  \"threshold\": 500\n}"
+          }
+        },
+        {
+          "name": "Get Workflow Stats",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/workflows/summary/stats",
+          "auth": {
+            "type": "bearer",
+            "bearer": "{{token}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Health & Info",
+      "requests": [
+        {
+          "name": "Health Check",
+          "method": "GET",
+          "url": "{{baseUrl}}/health"
+        },
+        {
+          "name": "Root Info",
+          "method": "GET",
+          "url": "{{baseUrl}}/"
+        }
+      ]
+    }
+  ],
+  "environments": [
+    {
+      "name": "Local Development",
+      "variables": [
+        {
+          "name": "baseUrl",
+          "value": "http://localhost:8000"
+        },
+        {
+          "name": "token",
+          "value": ""
+        }
+      ]
+    }
+  ]
+}
