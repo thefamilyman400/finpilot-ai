@@ -140,6 +140,7 @@ class SimulationService:
                 "total_monthly_emi": round(total_monthly_emi, 2),
                 "total_loan_outstanding": round(total_loan_outstanding, 2),
                 "available_for_investment": 0,
+                "total_investment_balance": round(total_investment_balance, 2),
                 "loan_accounts": loan_details,
                 "loan_count": len(loan_accounts),
                 "category_breakdown": {},
@@ -348,7 +349,8 @@ class SimulationService:
             enhanced_params["_has_loans"] = spending_data.get("loan_count", 0) > 0
             enhanced_params["_loan_accounts"] = spending_data.get("loan_accounts", [])
             enhanced_params["_total_loan_outstanding"] = spending_data.get("total_loan_outstanding", 0)
-            
+            enhanced_params["_total_investment_balance"] = spending_data.get("total_investment_balance", 0)
+
             # Add spending data if not already provided by user
             if spending_data.get("has_data", False):
                 if "current_monthly_income" not in enhanced_params or enhanced_params.get("current_monthly_income", 0) == 0:
@@ -467,11 +469,17 @@ class SimulationService:
         retirement_age = params.get('retirement_age', 65)
         life_expectancy = params.get('life_expectancy', 90)
         
-        # Use investment account balance if current_savings is 0 or not provided
-        current_savings = params.get('current_savings', 0)
-        if current_savings == 0 or current_savings is None:
-            current_savings = params.get('_total_investment_balance', 0)
-        
+        # Add existing investment account balance to current savings.
+        # If the user has a manual cash savings amount plus investment account balances,
+        # we include both for the retirement corpus.
+        investment_balance = params.get('_total_investment_balance', 0) or 0
+        current_savings = params.get('current_savings', 0) or 0
+        if investment_balance > 0:
+            if current_savings > 0:
+                current_savings += investment_balance
+            else:
+                current_savings = investment_balance
+
         monthly_contribution = params.get('monthly_contribution', 0)
         annual_return = params.get('annual_return', self.default_return_rate)
         inflation_rate = params.get('inflation_rate', self.default_inflation_rate)
@@ -555,6 +563,7 @@ class SimulationService:
             "years_to_retirement": years_to_retirement,
             "years_in_retirement": years_in_retirement,
             "current_savings": current_savings,
+            "current_investment_balance": round(investment_balance, 2),
             "monthly_contribution": monthly_contribution,
             "projected_savings_at_retirement": round(total_at_retirement, 2),
             "required_savings": round(required_savings, 2),

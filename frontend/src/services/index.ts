@@ -5,6 +5,7 @@ export { transactionService } from './transaction.service';
 export { documentService } from './document.service';
 export { simulationService } from './simulation.service';
 export { copilotService } from './copilot.service';
+export { recommendationService } from './recommendation.service';
 
 // Re-export api instance for direct use if needed
 export { default as api } from './api';

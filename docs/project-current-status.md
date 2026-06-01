@@ -1,6 +1,6 @@
 # FinPilot AI - Current Project Status
 
-**Last Updated:** May 20, 2026  
+**Last Updated:** June 1, 2026
 **Document Purpose:** Comprehensive overview of frontend and backend implementation status
 
 ---
@@ -424,23 +424,20 @@ react-markdown (AI responses)
 ## 📚 Documentation
 
 ### Available Docs
-- ✅ `backend-architecture-plan.md` - Backend design
-- ✅ `implementation-roadmap.md` - Development phases
-- ✅ `phase1-setup-guide.md` - Initial setup
-- ✅ `phase2-completion-summary.md` - Phase 2 summary
-- ✅ `phase3-completion-summary.md` - Phase 3 summary
-- ✅ `windows-setup-guide.md` - Windows setup
-- ✅ `QUICK-START-TESTING.md` - Testing guide
-- ✅ `api-testing-guide.md` - API testing
-- ✅ `TESTING-GUIDE.md` - Comprehensive testing
-- ✅ `calculator-formulas-and-logic.md` - Calculator documentation
-- ✅ `project-current-status.md` - This document
+- ✅ `README.md` - Documentation index and quick start
+- ✅ `project-current-status.md` - This document (current project status)
+- ✅ `technical-architecture.md` - Complete technical architecture
+- ✅ `windows-setup-guide.md` - Windows setup instructions
+- ✅ `TESTING-GUIDE.md` - Comprehensive testing guide
+- ✅ `calculator-formulas-and-logic.md` - Financial calculator formulas
+- ✅ `backend/README.md` - Backend API documentation
+- ✅ `frontend/README.md` - Frontend setup guide
 
-### Missing Docs
-- ⏳ Component library documentation
-- ⏳ API endpoint reference
-- ⏳ Deployment guide
-- ⏳ User manual
+### Future Documentation Needs
+- ⏳ Deployment guide (Docker, cloud deployment)
+- ⏳ API endpoint reference (comprehensive)
+- ⏳ User manual (end-user documentation)
+- ⏳ Contributing guidelines
 
 ---
 

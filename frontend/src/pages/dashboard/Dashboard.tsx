@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { accountService } from '../../services/account.service';
 import { transactionService } from '../../services/transaction.service';
+import { recommendationService } from '../../services/recommendation.service';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import MainLayout from '../../components/layout/MainLayout';
 
@@ -21,6 +22,11 @@ export default function Dashboard() {
     queryFn: () => transactionService.getTransactions({}),
   });
 
+  const { data: recommendationSummary } = useQuery({
+    queryKey: ['recommendations-summary'],
+    queryFn: recommendationService.getSummary,
+  });
+
   const isLoading = accountsLoading || transactionsLoading;
   const hasError = accountsError || transactionsError;
 
@@ -35,7 +41,6 @@ export default function Dashboard() {
     .reduce((sum, acc) => sum + acc.balance, 0) || 0);
   
   const netWorth = totalAssets - totalLiabilities;
-  const accountCount = accounts?.length || 0;
   const transactionCount = transactionsData?.total || 0;
 
   // Calculate spending by category
@@ -174,20 +179,22 @@ export default function Dashboard() {
               </p>
             </div>
           </Link>
-          
-          <Link to="/copilot" style={{ textDecoration: 'none' }}>
-            <div className="card" style={{ cursor: 'pointer', transition: 'transform 0.2s', background: 'linear-gradient(135deg, rgb(59 130 246) 0%, rgb(147 51 234) 100%)', color: 'white' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: '500', color: 'rgba(255, 255, 255, 0.9)', marginBottom: '0.5rem' }}>
-                AI Copilot
+
+          <Link to="/recommendations" style={{ textDecoration: 'none' }}>
+            <div className="card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }}>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: '500', color: 'rgb(107 114 128)', marginBottom: '0.5rem' }}>
+                Recommendations
               </h3>
-              <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'white' }}>
-                🤖
+              <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'rgb(37 99 235)' }}>
+                {recommendationSummary?.pending_count || 0}
               </p>
-              <p style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.9)', marginTop: '0.5rem' }}>
-                Get financial insights
+              <p style={{ fontSize: '0.75rem', color: 'rgb(107 114 128)', marginTop: '0.5rem' }}>
+                Pending actions
               </p>
             </div>
           </Link>
+          
+          {/* AI Copilot card removed per request */}
         </div>
 
         {/* Charts Section */}
@@ -205,16 +212,16 @@ export default function Dashboard() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {categoryData.map((entry, index) => (
+                    {categoryData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -231,7 +238,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
                   <YAxis />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                   <Bar dataKey="balance" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>

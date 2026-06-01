@@ -90,22 +90,57 @@ async def chat_with_copilot(
             tokens_used=result["tokens_used"]
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    except Exception as e:
         error_text = str(e)
-        if "insufficient_quota" in error_text or "Error code: 429" in error_text:
+        
+        # Handle quota exceeded errors
+        if "quota exceeded" in error_text.lower() or "rate limit" in error_text.lower():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=error_text
+            )
+        
+        # Handle service unavailable errors
+        if "temporarily unavailable" in error_text.lower() or "high demand" in error_text.lower():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI service unavailable: OpenAI quota exceeded. Check billing and usage limits."
+                detail=error_text
+            )
+        
+        # Handle conversation not found
+        if "conversation not found" in error_text.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_text
+            )
+        
+        # Other ValueError cases
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_text
+        )
+    except Exception as e:
+        # Log full exception for diagnostics
+        print(f"Copilot endpoint error (full): {repr(e)}")
+        error_text = str(e)
+        
+        # Handle various AI service errors
+        if "quota exceeded" in error_text.lower() or "rate limit" in error_text.lower():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI service rate limit reached. Please try again in a few moments."
+            )
+        if "insufficient_quota" in error_text or "Error code: 429" in error_text:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI service quota exceeded. Please try again later."
             )
         if "model_not_found" in error_text or "does not exist or you do not have access to it" in error_text:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI service unavailable: configured OpenAI model is not accessible."
+                detail="AI service unavailable: configured model is not accessible."
             )
+        
+        # Generic error
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing chat: {error_text}"
@@ -139,18 +174,51 @@ async def get_quick_analysis(
             data_points=result.get("financial_context"),
             tokens_used=result["tokens_used"]
         )
-    except Exception as e:
+    except ValueError as e:
         error_text = str(e)
-        if "insufficient_quota" in error_text or "Error code: 429" in error_text:
+        
+        # Handle quota exceeded errors
+        if "quota exceeded" in error_text.lower() or "rate limit" in error_text.lower():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=error_text
+            )
+        
+        # Handle service unavailable errors
+        if "temporarily unavailable" in error_text.lower() or "high demand" in error_text.lower():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI service unavailable: OpenAI quota exceeded. Check billing and usage limits."
+                detail=error_text
+            )
+        
+        # Other ValueError cases
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_text
+        )
+    except Exception as e:
+        # Log full exception for diagnostics
+        print(f"Quick analysis endpoint error (full): {repr(e)}")
+        error_text = str(e)
+        
+        # Handle various AI service errors
+        if "quota exceeded" in error_text.lower() or "rate limit" in error_text.lower():
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI service rate limit reached. Please try again in a few moments."
+            )
+        if "insufficient_quota" in error_text or "Error code: 429" in error_text:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI service quota exceeded. Please try again later."
             )
         if "model_not_found" in error_text or "does not exist or you do not have access to it" in error_text:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI service unavailable: configured OpenAI model is not accessible."
+                detail="AI service unavailable: configured model is not accessible."
             )
+        
+        # Generic error
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating analysis: {error_text}"

@@ -146,7 +146,7 @@ class TestNetWorthCalculations:
         accounts = [
             FinancialAccount(
                 user_id=test_user.id,
-                account_type=AccountType.CHECKING,
+                account_type=AccountType.CURRENT,
                 institution_name="Bank A",
                 account_name="Current Account",
                 balance=50000.00,
@@ -365,6 +365,49 @@ class TestRetirementCalculations:
         assert results["projected_savings_at_retirement"] > 500000
         assert "required_savings" in results
         assert "success_probability" in results
+
+    async def test_retirement_simulation_includes_existing_investment_accounts(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session: AsyncSession,
+        test_user: User
+    ):
+        """Retirement planning should include the user's investment account balance."""
+        investment_account = FinancialAccount(
+            user_id=test_user.id,
+            account_type=AccountType.INVESTMENT,
+            institution_name="Brokerage",
+            account_name="Equity Portfolio",
+            balance=300000.00,
+            currency="INR"
+        )
+        db_session.add(investment_account)
+        await db_session.commit()
+
+        params = {
+            "current_age": 30,
+            "retirement_age": 60,
+            "current_savings": 50000,
+            "monthly_contribution": 10000,
+            "expected_return": 0.10,
+            "inflation_rate": 0.06,
+            "current_monthly_income": 100000
+        }
+
+        response = await client.post(
+            "/api/v1/simulations/retirement/quick",
+            headers=auth_headers,
+            json=params
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        results = data["results"]
+
+        assert abs(results["current_investment_balance"] - 300000.00) < 0.01
+        assert abs(results["current_savings"] - 350000.00) < 0.01
+        assert results["projected_savings_at_retirement"] > 350000.00
 
 
 @pytest.mark.asyncio

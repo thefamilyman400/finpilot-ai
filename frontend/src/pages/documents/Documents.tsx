@@ -11,7 +11,6 @@ export default function Documents() {
   
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [parseResult, setParseResult] = useState<any>(null);
   const [showParseResult, setShowParseResult] = useState(false);
 
@@ -27,7 +26,6 @@ export default function Documents() {
       documentService.uploadDocument(file, type),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
-      setUploadProgress(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }

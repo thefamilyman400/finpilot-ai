@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 import json
+import re
 
-from openai import AsyncOpenAI
+import httpx
 
 from app.models.recommendation import (
     Recommendation,
@@ -27,9 +28,14 @@ class RecommendationService:
     """
     
     def __init__(self):
-        """Initialize OpenAI client"""
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.OPENAI_MODEL
+        """Initialize Gemini client"""
+        self.api_key = settings.GOOGLE_API_KEY
+        if not self.api_key:
+            raise ValueError("GOOGLE_API_KEY is required in environment variables")
+        
+        self.model = settings.GOOGLE_GEMINI_MODEL or "gemini-pro"
+        self.temperature = settings.OPENAI_TEMPERATURE
+        self.max_tokens = settings.OPENAI_MAX_TOKENS
     
     async def create_recommendation(
         self,
@@ -88,7 +94,7 @@ class RecommendationService:
         ).offset(skip).limit(limit)
         
         result = await db.execute(query)
-        return result.scalars().all()
+        return list(result.scalars().all())
     
     async def update_recommendation(
         self,
@@ -178,7 +184,7 @@ class RecommendationService:
                 Recommendation.is_active == True
             )
         )
-        recommendations = result.scalars().all()
+        recommendations = list(result.scalars().all())
         
         summary = {
             "total_recommendations": len(recommendations),
@@ -204,6 +210,46 @@ class RecommendationService:
                 summary["by_priority"][priority.value] = count
         
         return summary
+
+    async def _call_gemini(self, prompt: str) -> str:
+        """Call Google Gemini API to generate text."""
+        # Use v1beta for experimental models, v1 for stable
+        api_version = "v1beta" if "exp" in self.model or "2.0" in self.model or "2.5" in self.model or "3." in self.model else "v1"
+        url = f"https://generativelanguage.googleapis.com/{api_version}/models/{self.model}:generateContent?key={self.api_key}"
+        
+        body = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
+                "temperature": float(self.temperature),
+                "maxOutputTokens": int(self.max_tokens),
+            }
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, json=body)
+                resp.raise_for_status()
+                data = resp.json()
+
+            # Parse Gemini response
+            text = ''
+            if isinstance(data, dict):
+                candidates = data.get('candidates', [])
+                if candidates and len(candidates) > 0:
+                    content = candidates[0].get('content', {})
+                    parts = content.get('parts', [])
+                    if parts and len(parts) > 0:
+                        text = parts[0].get('text', '')
+
+            if not text:
+                raise ValueError("No text generated from Gemini API")
+
+            return text
+        except Exception as e:
+            print(f"Gemini API error: {str(e)}")
+            raise ValueError(f"Failed to call Gemini: {str(e)}")
     
     async def generate_recommendations(
         self,
@@ -222,54 +268,102 @@ class RecommendationService:
         prompt = self._build_recommendation_prompt(financial_context, focus_areas, max_recommendations)
         
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a financial advisor AI. Generate personalized financial recommendations in JSON format."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.7,
-                max_tokens=2000,
-                response_format={"type": "json_object"}
-            )
+            # Call Gemini API
+            response_text = await self._call_gemini(prompt)
             
-            # Parse AI response
-            recommendations_data = json.loads(response.choices[0].message.content)
+            # Parse JSON from response
+            recommendations_data = self._parse_json_from_text(response_text)
             
             # Create recommendation objects
             created_recommendations = []
-            for rec_data in recommendations_data.get("recommendations", [])[:max_recommendations]:
-                recommendation = await self.create_recommendation(
-                    db,
-                    user_id,
-                    {
-                        "type": RecommendationType(rec_data.get("type", "other")),
-                        "priority": RecommendationPriority(rec_data.get("priority", "medium")),
-                        "title": rec_data.get("title"),
-                        "description": rec_data.get("description"),
-                        "rationale": rec_data.get("rationale"),
-                        "estimated_savings": rec_data.get("estimated_savings"),
-                        "estimated_time_to_implement": rec_data.get("estimated_time_to_implement"),
-                        "confidence_score": rec_data.get("confidence_score", 0.7),
-                        "action_items": rec_data.get("action_items", []),
-                        "resources": rec_data.get("resources", []),
-                        "context": financial_context,
-                        "ai_model": self.model
-                    }
-                )
-                created_recommendations.append(recommendation)
+            recommendations_list = recommendations_data.get("recommendations", [])
+            
+            if not recommendations_list:
+                print("Warning: No recommendations in AI response")
+                print(f"Full response: {response_text[:500]}")
+            
+            for rec_data in recommendations_list[:max_recommendations]:
+                try:
+                    # Validate and normalize type
+                    rec_type = rec_data.get("type", "other")
+                    try:
+                        rec_type_enum = RecommendationType(rec_type)
+                    except ValueError:
+                        print(f"Invalid recommendation type: {rec_type}, using 'other'")
+                        rec_type_enum = RecommendationType.OTHER
+                    
+                    # Validate and normalize priority
+                    rec_priority = rec_data.get("priority", "medium")
+                    try:
+                        rec_priority_enum = RecommendationPriority(rec_priority)
+                    except ValueError:
+                        print(f"Invalid priority: {rec_priority}, using 'medium'")
+                        rec_priority_enum = RecommendationPriority.MEDIUM
+                    
+                    recommendation = await self.create_recommendation(
+                        db,
+                        user_id,
+                        {
+                            "type": rec_type_enum,
+                            "priority": rec_priority_enum,
+                            "title": rec_data.get("title", "Financial Recommendation"),
+                            "description": rec_data.get("description", ""),
+                            "rationale": rec_data.get("rationale", ""),
+                            "estimated_savings": rec_data.get("estimated_savings"),
+                            "estimated_time_to_implement": rec_data.get("estimated_time_to_implement"),
+                            "confidence_score": rec_data.get("confidence_score", 0.7),
+                            "action_items": rec_data.get("action_items", []),
+                            "resources": rec_data.get("resources", []),
+                            "context": financial_context,
+                            "ai_model": self.model
+                        }
+                    )
+                    created_recommendations.append(recommendation)
+                    print(f"Created recommendation: {recommendation.title}")
+                except Exception as e:
+                    print(f"Error creating individual recommendation: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+            
+            if not created_recommendations:
+                print("Warning: No recommendations were created successfully")
             
             return created_recommendations
             
         except Exception as e:
-            print(f"Error generating recommendations: {str(e)}")
+            print(f"Error generating recommendations: {repr(e)}")
+            import traceback
+            traceback.print_exc()
             raise
+    
+    def _parse_json_from_text(self, text: str) -> Dict[str, Any]:
+        """Extract and parse JSON from text response"""
+        # Try direct JSON parse first
+        try:
+            return json.loads(text)
+        except:
+            pass
+        
+        # Try to find JSON in markdown code blocks
+        json_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', text)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except:
+                pass
+        
+        # Try to find JSON object in text
+        json_match = re.search(r'\{[\s\S]*"recommendations"[\s\S]*\}', text)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except:
+                pass
+        
+        # If all else fails, return empty structure
+        print(f"Could not parse JSON from response: {text[:200]}")
+        return {"recommendations": []}
     
     def _build_recommendation_prompt(
         self,
@@ -278,7 +372,7 @@ class RecommendationService:
         max_recommendations: int
     ) -> str:
         """Build prompt for AI recommendation generation"""
-        prompt = f"""Based on the following financial context, generate {max_recommendations} personalized financial recommendations.
+        prompt = f"""You are a financial advisor AI. Based on the following financial context, generate {max_recommendations} personalized financial recommendations.
 
 Financial Context:
 {json.dumps(financial_context, indent=2)}
@@ -289,7 +383,8 @@ Financial Context:
             areas = ", ".join([area.value for area in focus_areas])
             prompt += f"Focus on these areas: {areas}\n\n"
         
-        prompt += """Generate recommendations in the following JSON format:
+        prompt += """Generate recommendations in the following JSON format (respond ONLY with valid JSON, no markdown or extra text):
+
 {
   "recommendations": [
     {
@@ -311,7 +406,7 @@ Financial Context:
   ]
 }
 
-Make recommendations specific, actionable, and tailored to the user's financial situation. Consider their income, expenses, savings rate, and spending patterns."""
+Make recommendations specific, actionable, and tailored to the user's financial situation. Consider their income, expenses, savings rate, and spending patterns. Respond with ONLY the JSON object, no additional text."""
         
         return prompt
     

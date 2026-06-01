@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { CreditCard, FileText, Home, Lightbulb, LogOut, ReceiptText, Settings } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 export default function Sidebar() {
@@ -12,10 +13,11 @@ export default function Sidebar() {
   };
 
   const menuItems = [
-    { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
-    { icon: '💳', label: 'Accounts', path: '/accounts' },
-    { icon: '📊', label: 'Transactions', path: '/transactions' },
-    { icon: '📄', label: 'Documents', path: '/documents' },
+    { icon: Home, label: 'Dashboard', path: '/dashboard' },
+    { icon: CreditCard, label: 'Accounts', path: '/accounts' },
+    { icon: ReceiptText, label: 'Transactions', path: '/transactions' },
+    { icon: FileText, label: 'Documents', path: '/documents' },
+    { icon: Lightbulb, label: 'Recommendations', path: '/recommendations' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -35,7 +37,6 @@ export default function Sidebar() {
         padding: '1.5rem 0',
       }}
     >
-      {/* Logo */}
       <div style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
         <h1
           style={{
@@ -51,47 +52,49 @@ export default function Sidebar() {
         </h1>
       </div>
 
-      {/* Navigation */}
       <nav style={{ flex: 1, padding: '0 0.75rem' }}>
-        {menuItems.map((item) => (
-          <button
-            key={item.path}
-            onClick={() => navigate(item.path)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.75rem 1rem',
-              marginBottom: '0.25rem',
-              borderRadius: '0.5rem',
-              border: 'none',
-              backgroundColor: isActive(item.path) ? 'rgb(239 246 255)' : 'transparent',
-              color: isActive(item.path) ? 'rgb(59 130 246)' : 'rgb(107 114 128)',
-              fontSize: '0.875rem',
-              fontWeight: isActive(item.path) ? '600' : '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              textAlign: 'left',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive(item.path)) {
-                e.currentTarget.style.backgroundColor = 'rgb(249 250 251)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive(item.path)) {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }
-            }}
-          >
-            <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 1rem',
+                marginBottom: '0.25rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                backgroundColor: isActive(item.path) ? 'rgb(239 246 255)' : 'transparent',
+                color: isActive(item.path) ? 'rgb(59 130 246)' : 'rgb(107 114 128)',
+                fontSize: '0.875rem',
+                fontWeight: isActive(item.path) ? '600' : '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive(item.path)) {
+                  e.currentTarget.style.backgroundColor = 'rgb(249 250 251)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive(item.path)) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              <Icon size={20} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
-      {/* Bottom Actions */}
       <div style={{ padding: '0 0.75rem', borderTop: '1px solid rgb(229 231 235)', paddingTop: '1rem' }}>
         <button
           onClick={() => navigate('/profile')}
@@ -104,22 +107,26 @@ export default function Sidebar() {
             marginBottom: '0.25rem',
             borderRadius: '0.5rem',
             border: 'none',
-            backgroundColor: 'transparent',
-            color: 'rgb(107 114 128)',
+            backgroundColor: isActive('/profile') ? 'rgb(239 246 255)' : 'transparent',
+            color: isActive('/profile') ? 'rgb(59 130 246)' : 'rgb(107 114 128)',
             fontSize: '0.875rem',
-            fontWeight: '500',
+            fontWeight: isActive('/profile') ? '600' : '500',
             cursor: 'pointer',
             transition: 'all 0.2s',
             textAlign: 'left',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(249 250 251)';
+            if (!isActive('/profile')) {
+              e.currentTarget.style.backgroundColor = 'rgb(249 250 251)';
+            }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
+            if (!isActive('/profile')) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }
           }}
         >
-          <span style={{ fontSize: '1.25rem' }}>⚙️</span>
+          <Settings size={20} />
           <span>Settings</span>
         </button>
 
@@ -148,7 +155,7 @@ export default function Sidebar() {
             e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
-          <span style={{ fontSize: '1.25rem' }}>🚪</span>
+          <LogOut size={20} />
           <span>Logout</span>
         </button>
       </div>

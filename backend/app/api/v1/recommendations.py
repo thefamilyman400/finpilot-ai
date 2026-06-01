@@ -24,6 +24,7 @@ from app.schemas.recommendation import (
     GenerateRecommendationsResponse,
 )
 from app.services.recommendation_service import recommendation_service
+import logging
 
 
 router = APIRouter(prefix="/recommendations", tags=["Recommendations"])
@@ -70,6 +71,7 @@ async def generate_recommendations(
             context_used=context_used
         )
     except Exception as e:
+        logging.exception("Error generating recommendations for user %s", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating recommendations: {str(e)}"

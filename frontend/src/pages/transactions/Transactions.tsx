@@ -28,7 +28,7 @@ export default function Transactions() {
   // Fetch accounts for filter dropdown
   const { data: accounts } = useQuery<Account[]>({
     queryKey: ['accounts'],
-    queryFn: accountService.getAccounts,
+    queryFn: () => accountService.getAccounts(),
   });
 
   // Log accounts when they change

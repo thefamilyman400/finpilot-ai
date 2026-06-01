@@ -2,10 +2,13 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/dashboard/Dashboard';
 import Accounts from './pages/accounts/Accounts';
 import Transactions from './pages/transactions/Transactions';
 import Documents from './pages/documents/Documents';
+import Recommendations from './pages/recommendations/Recommendations';
 import Profile from './pages/profile/Profile';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
@@ -34,6 +37,14 @@ function App() {
           <Route 
             path="/register" 
             element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} 
+          />
+          <Route 
+            path="/forgot-password" 
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPassword />} 
+          />
+          <Route 
+            path="/auth/reset-password" 
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ResetPassword />} 
           />
 
           {/* Protected routes */}
@@ -66,6 +77,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Documents />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/recommendations"
+            element={
+              <ProtectedRoute>
+                <Recommendations />
               </ProtectedRoute>
             }
           />

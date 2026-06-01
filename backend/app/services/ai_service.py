@@ -1,14 +1,16 @@
 """
-AI Service for OpenAI integration and conversation management
+AI Service for Google Gemini integration and conversation management
 Handles AI copilot interactions, context management, and response generation
 """
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 import json
+import asyncio
 
-from openai import AsyncOpenAI
+import httpx
 
 from app.models.conversation import Conversation, Message
 from app.models.user import User
@@ -19,15 +21,19 @@ from config import settings
 
 class AIService:
     """
-    Service for AI-powered features using OpenAI
+    Service for AI-powered features using Google Gemini
     Manages conversations, context, and generates intelligent responses
     """
     
     def __init__(self):
-        """Initialize OpenAI client"""
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.OPENAI_MODEL
-        self.temperature = settings.OPENAI_TEMPERATURE
+        """Initialize Gemini client"""
+        self.api_key = settings.GOOGLE_API_KEY
+        if not self.api_key:
+            raise ValueError("GOOGLE_API_KEY is required in environment variables")
+        
+        # Use gemini-pro as default model
+        self.model = settings.GOOGLE_GEMINI_MODEL or "gemini-pro"
+        self.temperature = settings.OPENAI_TEMPERATURE  # Reuse temperature setting
         self.max_tokens = settings.OPENAI_MAX_TOKENS
         
     async def create_conversation(
@@ -130,7 +136,17 @@ class AIService:
         
         result = await db.execute(query)
         return result.scalars().all()
-    
+
+    def _normalize_decimals(self, value: Any) -> Any:
+        """Recursively normalize Decimal objects to JSON-friendly types."""
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, dict):
+            return {k: self._normalize_decimals(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self._normalize_decimals(v) for v in value]
+        return value
+
     async def build_financial_context(
         self,
         db: AsyncSession,
@@ -146,14 +162,14 @@ class AIService:
         accounts = accounts_result.scalars().all()
         
         if accounts:
-            total_balance = sum(acc.balance for acc in accounts)
+            total_balance = sum(float(acc.balance) if acc.balance is not None else 0.0 for acc in accounts)
             context["total_balance"] = total_balance
             context["account_count"] = len(accounts)
             context["accounts"] = [
                 {
                     "type": acc.account_type.value,
                     "name": acc.account_name,
-                    "balance": acc.balance,
+                    "balance": float(acc.balance) if acc.balance is not None else 0.0,
                     "currency": acc.currency
                 }
                 for acc in accounts
@@ -175,8 +191,8 @@ class AIService:
         transactions = transactions_result.scalars().all()
         
         if transactions:
-            total_income = sum(t.amount for t in transactions if t.is_income)
-            total_expenses = sum(t.amount for t in transactions if t.is_expense)
+            total_income = sum(float(t.amount) if t.amount is not None else 0.0 for t in transactions if t.is_income)
+            total_expenses = sum(float(t.amount) if t.amount is not None else 0.0 for t in transactions if t.is_expense)
             
             context["monthly_income"] = total_income
             context["monthly_expenses"] = total_expenses
@@ -186,15 +202,15 @@ class AIService:
             # Category breakdown
             category_spending = {}
             for t in transactions:
-                if t.is_expense:
+                if t.is_expense and t.amount is not None:
                     category = t.category.value if t.category else "uncategorized"
-                    category_spending[category] = category_spending.get(category, 0) + t.amount
+                    category_spending[category] = category_spending.get(category, 0) + float(t.amount)
             
             context["top_spending_categories"] = dict(
                 sorted(category_spending.items(), key=lambda x: x[1], reverse=True)[:5]
             )
         
-        return context
+        return self._normalize_decimals(context)
     
     def _build_system_prompt(self, financial_context: Optional[Dict[str, Any]] = None) -> str:
         """Build system prompt for AI"""
@@ -215,34 +231,153 @@ specific situation and remind them to consult with financial professionals for m
         
         return base_prompt
     
-    def _prepare_messages(
+    def _prepare_conversation_text(
         self,
         conversation_history: List[Message],
         new_message: str,
         financial_context: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, str]]:
-        """Prepare messages for OpenAI API"""
-        messages = [
-            {"role": "system", "content": self._build_system_prompt(financial_context)}
-        ]
+    ) -> str:
+        """Prepare conversation text for Gemini API"""
+        # Build the full conversation context
+        prompt = self._build_system_prompt(financial_context) + "\n\n"
         
-        # Add conversation history (limit to recent messages to stay within context window)
+        # Add conversation history (limit to recent messages)
         max_history = settings.AI_CONVERSATION_MAX_HISTORY
         recent_history = conversation_history[-max_history:] if len(conversation_history) > max_history else conversation_history
         
         for msg in recent_history:
-            messages.append({
-                "role": msg.role,
-                "content": msg.content
-            })
+            role_label = "User" if msg.role == "user" else "Assistant"
+            prompt += f"{role_label}: {msg.content}\n\n"
         
         # Add new user message
-        messages.append({
-            "role": "user",
-            "content": new_message
-        })
+        prompt += f"User: {new_message}\n\nAssistant:"
         
-        return messages
+        return prompt
+
+    async def _call_gemini(self, prompt: str, max_retries: int = 3) -> Dict[str, Any]:
+        """
+        Call Google Gemini API to generate text with retry logic and exponential backoff.
+        
+        Args:
+            prompt: The prompt to send to Gemini
+            max_retries: Maximum number of retry attempts for rate limit errors
+            
+        Returns:
+            Dict containing assistant response and tokens used
+            
+        Raises:
+            ValueError: For quota exceeded or other API errors
+        """
+        # Use v1beta for experimental models, v1 for stable
+        api_version = "v1beta" if "exp" in self.model or "2.0" in self.model or "2.5" in self.model or "3." in self.model else "v1"
+        url = f"https://generativelanguage.googleapis.com/{api_version}/models/{self.model}:generateContent?key={self.api_key}"
+        
+        body = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
+                "temperature": float(self.temperature),
+                "maxOutputTokens": int(self.max_tokens),
+            }
+        }
+        
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    resp = await client.post(url, json=body)
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                # Parse Gemini response
+                text = ''
+                if isinstance(data, dict):
+                    candidates = data.get('candidates', [])
+                    if candidates and len(candidates) > 0:
+                        content = candidates[0].get('content', {})
+                        parts = content.get('parts', [])
+                        if parts and len(parts) > 0:
+                            text = parts[0].get('text', '')
+                    
+                    if not text:
+                        # Fallback parsing
+                        text = data.get('text', '') or data.get('output', '')
+
+                if not text:
+                    raise ValueError("No text generated from Gemini API")
+
+                return {"assistant": text, "tokens_used": 0}
+                
+            except httpx.HTTPStatusError as e:
+                error_detail = e.response.text if hasattr(e.response, 'text') else str(e)
+                
+                # Parse error response
+                try:
+                    error_json = json.loads(error_detail)
+                    error_code = error_json.get('error', {}).get('code')
+                    error_message = error_json.get('error', {}).get('message', '')
+                    error_status = error_json.get('error', {}).get('status', '')
+                except:
+                    error_code = e.response.status_code
+                    error_message = error_detail
+                    error_status = ''
+                
+                # Handle retryable errors (429 quota exceeded, 503 service unavailable)
+                if error_code == 429 or error_status == 'RESOURCE_EXHAUSTED' or error_code == 503 or error_status == 'UNAVAILABLE':
+                    error_type = "quota exceeded" if error_code == 429 else "service unavailable"
+                    print(f"Gemini API {error_type} (attempt {attempt + 1}/{max_retries}): {error_message}")
+                    
+                    # Extract retry delay from error if available
+                    retry_delay = 1.0  # Default 1 second
+                    try:
+                        error_json = json.loads(error_detail)
+                        details = error_json.get('error', {}).get('details', [])
+                        for detail in details:
+                            if detail.get('@type') == 'type.googleapis.com/google.rpc.RetryInfo':
+                                retry_str = detail.get('retryDelay', '1s')
+                                # Parse delay like "32s" or "32.502468267s"
+                                retry_delay = float(retry_str.rstrip('s'))
+                                break
+                    except:
+                        pass
+                    
+                    # If this is the last attempt, raise a user-friendly error
+                    if attempt == max_retries - 1:
+                        if error_code == 429 or error_status == 'RESOURCE_EXHAUSTED':
+                            raise ValueError(
+                                "AI service quota exceeded. The Gemini API free tier limit has been reached. "
+                                "Please try again later or upgrade your API plan at https://ai.google.dev/pricing"
+                            )
+                        else:
+                            raise ValueError(
+                                "AI service temporarily unavailable due to high demand. "
+                                "Please try again in a few moments."
+                            )
+                    
+                    # Exponential backoff with jitter
+                    wait_time = min(retry_delay, 2 ** attempt) + (0.1 * attempt)
+                    print(f"Retrying after {wait_time:.2f} seconds...")
+                    await asyncio.sleep(wait_time)
+                    last_error = e
+                    continue
+                
+                # For other HTTP errors, don't retry
+                print(f"Gemini API HTTP error: {error_detail}")
+                raise ValueError(f"Gemini API error (HTTP {error_code}): {error_message}")
+                
+            except Exception as e:
+                print(f"Gemini API error: {str(e)}")
+                raise ValueError(f"Failed to call Gemini: {str(e)}")
+        
+        # If we exhausted all retries
+        if last_error:
+            raise ValueError(
+                "AI service temporarily unavailable due to rate limits. Please try again in a few moments."
+            )
+        
+        raise ValueError("Failed to call Gemini API after multiple attempts")
     
     async def chat(
         self,
@@ -273,20 +408,17 @@ specific situation and remind them to consult with financial professionals for m
         # Get conversation history
         history = await self.get_conversation_history(db, str(conversation.id))
         
-        # Prepare messages for OpenAI
-        messages = self._prepare_messages(history, message, financial_context)
+        # Prepare prompt for Gemini
+        prompt = self._prepare_conversation_text(history, message, financial_context)
         
-        # Call OpenAI API
+        # Call Gemini API
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens
-            )
+            result = await self._call_gemini(prompt)
+            assistant_message = result.get('assistant', '')
+            tokens_used = result.get('tokens_used', 0)
             
-            assistant_message = response.choices[0].message.content
-            tokens_used = response.usage.total_tokens
+            if not assistant_message:
+                raise ValueError("Empty response from AI")
             
             # Save user message
             user_msg = await self.add_message(
@@ -315,7 +447,7 @@ specific situation and remind them to consult with financial professionals for m
             
         except Exception as e:
             # Log error and raise
-            print(f"Error calling OpenAI API: {str(e)}")
+            print(f"Error calling Gemini API: {str(e)}")
             raise
     
     async def generate_quick_analysis(
@@ -328,31 +460,32 @@ specific situation and remind them to consult with financial professionals for m
         financial_context = await self.build_financial_context(db, user_id)
         
         system_prompt = self._build_system_prompt(financial_context)
-        analysis_prompt = f"{query}\n\nProvide a concise analysis with key insights and actionable recommendations."
+        analysis_prompt = f"{system_prompt}\n\nUser Query: {query}\n\nProvide a concise analysis with key insights and actionable recommendations.\n\nAssistant:"
         
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens
-            )
-            
-            analysis = response.choices[0].message.content
-            tokens_used = response.usage.total_tokens
+            result = await self._call_gemini(analysis_prompt)
+            analysis = result.get('assistant', '')
+            tokens_used = result.get('tokens_used', 0)
             
             # Parse insights and recommendations from response
-            # This is a simple implementation - could be enhanced with structured output
             lines = analysis.split('\n')
-            insights = [line.strip('- ') for line in lines if line.strip().startswith('-')]
+            insights = []
+            recommendations = []
+            
+            for line in lines:
+                line = line.strip()
+                if line.startswith('-') or line.startswith('•') or line.startswith('*'):
+                    cleaned = line.lstrip('-•* ').strip()
+                    if cleaned:
+                        if len(insights) < 5:
+                            insights.append(cleaned)
+                        elif len(recommendations) < 5:
+                            recommendations.append(cleaned)
             
             return {
                 "analysis": analysis,
-                "insights": insights[:5],  # Top 5 insights
-                "recommendations": insights[5:10] if len(insights) > 5 else [],  # Next 5 as recommendations
+                "insights": insights,
+                "recommendations": recommendations,
                 "tokens_used": tokens_used,
                 "financial_context": financial_context
             }

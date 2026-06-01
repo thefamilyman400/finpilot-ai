@@ -32,7 +32,7 @@ export default function Accounts() {
   const formatCurrency = (amount: number, currency: string = 'INR') => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'INR',
+      currency,
       maximumFractionDigits: 2,
     }).format(amount);
   };
@@ -98,7 +98,11 @@ export default function Accounts() {
               Total Liabilities
             </h3>
             <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'rgb(239 68 68)' }}>
-              {formatCurrency(accounts?.filter(acc => acc.account_type === 'loan').reduce((sum, acc) => sum + (acc.loan_outstanding || 0), 0) + accounts?.filter(acc => acc.account_type === 'credit_card').reduce((sum, acc) => sum + acc.balance, 0) || 0)}
+              {formatCurrency(
+                (accounts ? accounts.filter(acc => acc.account_type === 'loan').reduce((sum, acc) => sum + (acc.loan_outstanding || 0), 0) : 0) +
+                (accounts ? accounts.filter(acc => acc.account_type === 'credit_card').reduce((sum, acc) => sum + acc.balance, 0) : 0),
+                'INR'
+              )}
             </p>
           </div>
 
@@ -107,7 +111,12 @@ export default function Accounts() {
               Net Worth
             </h3>
             <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'rgb(17 24 39)' }}>
-              {formatCurrency((accounts?.filter(acc => ['checking', 'savings', 'investment'].includes(acc.account_type)).reduce((sum, acc) => sum + acc.balance, 0) || 0) - (accounts?.filter(acc => acc.account_type === 'loan').reduce((sum, acc) => sum + (acc.loan_outstanding || 0), 0) + accounts?.filter(acc => acc.account_type === 'credit_card').reduce((sum, acc) => sum + acc.balance, 0) || 0))}
+              {formatCurrency(
+                (accounts ? accounts.filter(acc => ['checking', 'savings', 'investment'].includes(acc.account_type)).reduce((sum, acc) => sum + acc.balance, 0) : 0) -
+                ((accounts ? accounts.filter(acc => acc.account_type === 'loan').reduce((sum, acc) => sum + (acc.loan_outstanding || 0), 0) : 0) +
+                (accounts ? accounts.filter(acc => acc.account_type === 'credit_card').reduce((sum, acc) => sum + acc.balance, 0) : 0)),
+                'INR'
+              )}
             </p>
           </div>
           
@@ -327,23 +336,6 @@ function AccountModal({
     
     // Ensure non-negative
     return Math.max(0, Math.round(interestPaid * 100) / 100);
-  };
-
-  // Auto-calculate total principal paid
-  const calculatePrincipalPaid = (
-    principal: number,
-    emi: number,
-    startDate: string,
-    totalMonths: number
-  ): number => {
-    if (!principal || !emi || !startDate || !totalMonths) return 0;
-    const monthsElapsed = totalMonths - calculateRemainingTenure(startDate, totalMonths);
-    if (monthsElapsed <= 0) return 0;
-    
-    // For simplicity, calculate based on outstanding balance
-    // Principal Paid = Original Principal - Current Outstanding
-    const outstanding = formData.loan_outstanding || 0;
-    return Math.round((principal - outstanding) * 100) / 100;
   };
 
   const queryClient = useQueryClient();

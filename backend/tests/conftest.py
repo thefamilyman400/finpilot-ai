@@ -123,7 +123,7 @@ async def test_account(db_session: AsyncSession, test_user: User) -> FinancialAc
     """Create a test financial account"""
     account = FinancialAccount(
         user_id=test_user.id,
-        account_type=AccountType.CHECKING,
+        account_type=AccountType.CURRENT,
         institution_name="Test Bank",
         account_name="Test Checking",
         balance=1000.00,

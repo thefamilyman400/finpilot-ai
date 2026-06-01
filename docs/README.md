@@ -202,6 +202,8 @@ If you can't find what you're looking for in the documentation:
 
 | Date | Document | Changes |
 |------|----------|---------|
+| 2026-06-01 | All | Removed obsolete phase-specific documentation |
+| 2026-06-01 | project-current-status.md | Updated documentation references |
 | 2026-05-20 | All | Documentation cleanup and consolidation |
 | 2026-05-20 | technical-architecture.md | Created comprehensive technical doc |
 | 2026-05-20 | project-current-status.md | Updated with latest status |

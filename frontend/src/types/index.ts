@@ -137,13 +137,51 @@ export interface Document {
 export interface Recommendation {
   id: string;
   user_id: string;
-  recommendation_type: string;
+  type: string;
   title: string;
   description: string;
   priority: string;
   status: string;
+  rationale?: string;
+  estimated_savings?: number;
+  estimated_time_to_implement?: string;
+  confidence_score?: number;
+  action_items?: Array<Record<string, any>>;
+  resources?: Array<Record<string, any>>;
+  context?: Record<string, any>;
+  viewed_at?: string;
+  accepted_at?: string;
+  rejected_at?: string;
+  completed_at?: string;
+  user_notes?: string;
+  expires_at?: string;
+  is_active: boolean;
+  is_pending: boolean;
+  is_accepted: boolean;
+  is_completed: boolean;
+  is_expired: boolean;
+  days_since_created: number;
+  priority_score: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface RecommendationSummary {
+  total_recommendations: number;
+  pending_count: number;
+  accepted_count: number;
+  completed_count: number;
+  rejected_count: number;
+  total_estimated_savings: number;
+  by_type: Record<string, number>;
+  by_priority: Record<string, number>;
+}
+
+export interface GenerateRecommendationsResponse {
+  recommendations: Recommendation[];
+  generation_summary: string;
+  total_generated: number;
+  context_used?: Record<string, any>;
 }
 
 // Simulation types

@@ -36,6 +36,7 @@ from app.schemas.user import (
     EmailVerification,
     ResendVerificationEmail,
 )
+from app.services.email_service import email_service
 
 router = APIRouter()
 
@@ -78,9 +79,13 @@ async def register(
     await db.commit()
     await db.refresh(new_user)
     
-    # TODO: Send verification email in background
-    # verification_token = create_email_verification_token(new_user.email)
-    # background_tasks.add_task(send_verification_email, new_user.email, verification_token)
+    # Send verification email in background
+    verification_token = create_email_verification_token(new_user.email)
+    background_tasks.add_task(
+        email_service.send_email_verification_email,
+        new_user.email,
+        verification_token
+    )
     
     return new_user
 
@@ -204,8 +209,11 @@ async def forgot_password(
     # Always return success to prevent email enumeration
     if user:
         reset_token = create_password_reset_token(user.email)
-        # TODO: Send password reset email in background
-        # background_tasks.add_task(send_password_reset_email, user.email, reset_token)
+        background_tasks.add_task(
+            email_service.send_password_reset_email,
+            user.email,
+            reset_token
+        )
     
     return {"message": "If the email exists, a password reset link has been sent"}
 
@@ -228,8 +236,11 @@ async def password_reset_request(
     # Always return success to prevent email enumeration
     if user:
         reset_token = create_password_reset_token(user.email)
-        # TODO: Send password reset email in background
-        # background_tasks.add_task(send_password_reset_email, user.email, reset_token)
+        background_tasks.add_task(
+            email_service.send_password_reset_email,
+            user.email,
+            reset_token
+        )
     
     return {"message": "If the email exists, a password reset email sent"}
 

@@ -35,18 +35,18 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173"
     
     @property
     def cors_origins(self) -> List[str]:
         """Get CORS origins as a list"""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
     
-    # OpenAI / AI Configuration
-    OPENAI_API_KEY: str = Field(..., description="OpenAI API key")
-    OPENAI_MODEL: str = "gpt-4-turbo-preview"
-    OPENAI_TEMPERATURE: float = 0.7
-    OPENAI_MAX_TOKENS: int = 2000
+    # AI Configuration (Using Google Gemini)
+    GOOGLE_API_KEY: str = Field(..., description="Google Gemini API key")
+    GOOGLE_GEMINI_MODEL: str = "gemini-pro"
+    OPENAI_TEMPERATURE: float = 0.7  # Temperature setting (reused for Gemini)
+    OPENAI_MAX_TOKENS: int = 2000  # Max tokens setting (reused for Gemini)
     AI_CONVERSATION_MAX_HISTORY: int = 20
     AI_CONTEXT_WINDOW: int = 8000
     
@@ -91,6 +91,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAIL_FROM: str = "noreply@finpilot.ai"
     ENABLE_EMAIL_NOTIFICATIONS: bool = True
+    FRONTEND_URL: str = "http://localhost:3000"  # Frontend URL for email links
     
     # External APIs
     PLAID_CLIENT_ID: str = ""

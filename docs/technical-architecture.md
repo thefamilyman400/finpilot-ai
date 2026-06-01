@@ -1,7 +1,7 @@
 # FinPilot AI - Technical Architecture & Logic
 
-**Last Updated:** May 20, 2026  
-**Version:** 1.0
+**Last Updated:** June 1, 2026
+**Version:** 1.1
 
 ---
 
