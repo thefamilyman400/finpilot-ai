@@ -48,6 +48,7 @@ class User(Base):
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     recommendations = relationship("Recommendation", back_populates="user", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
+    support_tickets = relationship("SupportTicket", back_populates="user", foreign_keys="[SupportTicket.user_id]", cascade="all, delete-orphan")
     simulations = relationship("FinancialSimulation", back_populates="user", cascade="all, delete-orphan")
     workflows = relationship("AutonomousWorkflow", back_populates="user", cascade="all, delete-orphan")
     # preferences = relationship("UserPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")

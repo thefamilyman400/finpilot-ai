@@ -1,0 +1,40 @@
+# UC5 Banking/Insurance Portal - Additional Requirements
+# Install these in addition to existing requirements.txt
+
+# RAG & Vector Database
+langchain>=0.1.0
+chromadb>=0.4.22
+# Alternative vector DB options:
+# pinecone-client>=2.2.0
+# weaviate-client>=3.25.0
+
+# Document Processing & Embeddings
+sentence-transformers>=2.2.2
+tiktoken>=0.5.2
+unstructured>=0.11.0
+pypdf>=3.17.4
+python-docx>=1.1.0
+pdfplumber>=0.10.3
+
+# Text Processing
+nltk>=3.8.1
+spacy>=3.7.0
+
+# Vector Search (if not using cloud service)
+faiss-cpu>=1.7.4
+
+# Enhanced AI/ML
+anthropic>=0.7.8  # Optional: Claude for intent detection
+
+# Monitoring & Observability
+prometheus-client>=0.19.0
+sentry-sdk>=1.39.1
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+
+# Additional Utilities
+python-multipart>=0.0.6  # For file uploads
+aiofiles>=23.2.1  # Async file operations
+pillow>=10.1.0  # Image processing for OCR
+
+# Made with Bob - Compliance-First AI Assistant

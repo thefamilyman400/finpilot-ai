@@ -22,6 +22,16 @@ from app.models.workflow import (
     WorkflowStatus,
     ExecutionStatus
 )
+from app.models.escalation import (
+    Escalation,
+    EscalationPriority,
+    EscalationStatus,
+    SupportTicket,
+    TicketPriority,
+    TicketStatus
+)
+from app.models.intent_log import IntentLog, ComplianceViolation
+from app.models.product import Product, ProductDocument, PolicyDocument
 
 __all__ = [
     # User
@@ -58,6 +68,20 @@ __all__ = [
     "ActionType",
     "WorkflowStatus",
     "ExecutionStatus",
+    # Escalations & Support
+    "Escalation",
+    "EscalationPriority",
+    "EscalationStatus",
+    "SupportTicket",
+    "TicketPriority",
+    "TicketStatus",
+    # Intent & Compliance
+    "IntentLog",
+    "ComplianceViolation",
+    # Products
+    "Product",
+    "ProductDocument",
+    "PolicyDocument",
 ]
 
 # Made with Bob

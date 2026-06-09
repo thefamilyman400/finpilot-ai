@@ -153,6 +153,7 @@ class AIService:
         user_id: str
     ) -> Dict[str, Any]:
         """Build financial context for AI from user's data"""
+        print(f"[DEBUG] build_financial_context called for user: {user_id}")
         context = {}
         
         # Get user's accounts
@@ -186,9 +187,11 @@ class AIService:
                 Transaction.transaction_date >= thirty_days_ago
             )
             .order_by(desc(Transaction.transaction_date))
-            .limit(50)
+            .limit(100)  # Increased limit for better analysis
         )
         transactions = transactions_result.scalars().all()
+        
+        print(f"[DEBUG] Fetched {len(transactions)} transactions from database")
         
         if transactions:
             total_income = sum(float(t.amount) if t.amount is not None else 0.0 for t in transactions if t.is_income)
@@ -209,12 +212,30 @@ class AIService:
             context["top_spending_categories"] = dict(
                 sorted(category_spending.items(), key=lambda x: x[1], reverse=True)[:5]
             )
+            
+            print(f"[DEBUG] About to add recent_transactions list...")
+            # Add detailed transaction list for AI analysis
+            context["recent_transactions"] = [
+                {
+                    "date": t.transaction_date.isoformat() if t.transaction_date else None,
+                    "description": t.description,
+                    "amount": float(t.amount) if t.amount is not None else 0.0,
+                    "type": t.transaction_type.value if t.transaction_type else None,
+                    "category": t.category.value if t.category else "uncategorized",
+                    "merchant": t.merchant_name,
+                    "is_recurring": t.is_recurring
+                }
+                for t in transactions[:50]  # Limit to 50 most recent for context size
+            ]
+            print(f"[DEBUG] Added {len(context['recent_transactions'])} transactions to context")
+        else:
+            print("[DEBUG] No transactions found in database!")
         
         return self._normalize_decimals(context)
     
     def _build_system_prompt(self, financial_context: Optional[Dict[str, Any]] = None) -> str:
         """Build system prompt for AI"""
-        base_prompt = """You are FinPilot AI, an intelligent financial assistant. You help users manage their finances, 
+        base_prompt = """You are FinPilot AI, an intelligent financial assistant. You help users manage their finances,
 provide insights, and offer personalized recommendations. You are knowledgeable about:
 - Personal finance management
 - Budgeting and saving strategies
@@ -222,8 +243,17 @@ provide insights, and offer personalized recommendations. You are knowledgeable 
 - Debt management
 - Financial planning
 
-Be helpful, clear, and actionable in your responses. When providing financial advice, always consider the user's 
-specific situation and remind them to consult with financial professionals for major decisions."""
+Be helpful, clear, and actionable in your responses. When providing financial advice, always consider the user's
+specific situation and remind them to consult with financial professionals for major decisions.
+
+IMPORTANT: You have access to the user's actual financial data including:
+- Account balances and types
+- Recent transaction history (last 30 days)
+- Spending patterns by category
+- Income and expense totals
+
+When asked about transactions, spending, or financial analysis, USE THE DATA PROVIDED in the financial context below.
+Do NOT ask the user to provide transaction data - you already have it!"""
         
         if financial_context:
             context_str = f"\n\nUser's Financial Context:\n{json.dumps(financial_context, indent=2)}"
@@ -404,12 +434,19 @@ specific situation and remind them to consult with financial professionals for m
         financial_context = None
         if include_financial_context:
             financial_context = await self.build_financial_context(db, user_id)
+            # Debug: Log what context we're sending
+            print(f"[DEBUG] Financial context keys: {financial_context.keys() if financial_context else 'None'}")
+            if financial_context and 'recent_transactions' in financial_context:
+                print(f"[DEBUG] Number of transactions in context: {len(financial_context['recent_transactions'])}")
+            else:
+                print("[DEBUG] WARNING: No recent_transactions in context!")
         
         # Get conversation history
         history = await self.get_conversation_history(db, str(conversation.id))
         
         # Prepare prompt for Gemini
         prompt = self._prepare_conversation_text(history, message, financial_context)
+        print(f"[DEBUG] Prompt length: {len(prompt)} characters")
         
         # Call Gemini API
         try:
